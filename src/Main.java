@@ -2,6 +2,7 @@ import java.util.*;
 
 public class Main {
     public static final HashMap<Integer, Integer> sizeToFreq = new HashMap<>();
+    public static int maxKey = 0;
 
     public static void main(String[] args) throws InterruptedException {
 
@@ -16,8 +17,35 @@ public class Main {
                 } else {
                     sizeToFreq.put(countR, 1);
                 }
+                sizeToFreq.notify();
             }
         };
+
+        Runnable threadMaxValueLogic = () -> {
+            while (!Thread.interrupted()) {
+                int maxValue = 0;
+                synchronized (sizeToFreq) {
+                    try {
+                        sizeToFreq.wait();
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                    Iterator<Map.Entry<Integer, Integer>> iterator = sizeToFreq.entrySet().iterator();
+                    while (iterator.hasNext()) {
+                        Map.Entry<Integer, Integer> entry = iterator.next();
+                        if (entry.getValue() > maxValue) {
+                            maxValue = entry.getValue();
+                            maxKey = entry.getKey();
+                        }
+                    }
+
+                }
+                System.out.println("Самое частое количество повторений - " + maxKey + " (встретилось " + maxValue + " раз)");
+            }
+        };
+
+        Thread threadMaxValue = new Thread(threadMaxValueLogic);
+        threadMaxValue.start();
 
         List<Thread> threadList = new ArrayList<>();
         for (int i = 0; i < 1000; i++) {
@@ -30,6 +58,7 @@ public class Main {
         for (Thread thread : threadList) {
             thread.join();
         }
+        threadMaxValue.interrupt();
         mapResult(sizeToFreq);
     }
 
@@ -53,19 +82,7 @@ public class Main {
     }
 
     public static void mapResult(HashMap map) {
-        int maxValue = 0;
-        int maxKey = 0;
-        Iterator<Map.Entry<Integer, Integer>> iterator = map.entrySet().iterator();
-        while (iterator.hasNext()) {
-            Map.Entry<Integer, Integer> entry = iterator.next();
-            if (entry.getValue() > maxValue) {
-                maxValue = entry.getValue();
-                maxKey = entry.getKey();
-            }
-        }
-        System.out.println("Самое частое количество повторений - " + maxKey + " (встретилось " + maxValue + " раз)");
         System.out.println("Другие размеры: ");
-
         Iterator<Map.Entry<Integer, Integer>> iterator2 = map.entrySet().iterator();
         while (iterator2.hasNext()) {
             Map.Entry<Integer, Integer> entry = iterator2.next();
